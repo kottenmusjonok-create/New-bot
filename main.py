@@ -1,17 +1,14 @@
 import logging
 import asyncio
 import random
-import threading
 from datetime import datetime, timedelta
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
     ConversationHandler, ContextTypes, filters
 )
-from fastapi import FastAPI
-import uvicorn
 
-# --- Ваши состояния, тексты и параметры ---
+# Состояния для ConversationHandler
 USERNAME, CHOICE, QR, CODE, SUCCESS = range(5)
 
 WELCOME_TEXT = (
@@ -66,8 +63,6 @@ logging.basicConfig(
 
 user_last_seen = {}
 user_update_count = {}
-
-# --- Telegram-бот: ваши обработчики без изменений ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -170,7 +165,7 @@ async def update_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     count = user_update_count.get(user_id, 0)
     await update.message.reply_text(f"Фейковое обновление запускалось для вас {count} раз(а).")
 
-def run_bot():
+def main():
     application = ApplicationBuilder().token('8013431816:AAFpfkZnd4kTCWv33mkfS5JYW7Yp1Fo-r2c').build()
 
     conv_handler = ConversationHandler(
@@ -191,23 +186,25 @@ def run_bot():
 
     application.run_polling()
 
-# --- Веб-сервер FastAPI (healthcheck, статус и простые проверки) ---
-app = FastAPI()
-
-@app.get("/")
-async def root():
-    return {
-        "status": "ok",
-        "message": "Roblox бот работает!",
-        "active_users": len(user_last_seen),
-        "update_stats": user_update_count
-    }
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
-
-# --- Запуск бота и веб-сервера параллельно ---
 if __name__ == '__main__':
-    threading.Thread(target=run_bot, daemon=True).start()
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    main()
+
+    # ---- Добавлено для запуска Flask-сервера ----
+    from flask import Flask
+    from threading import Thread
+
+    app = Flask('')
+
+    @app.route('/')
+    def home():
+        return "Bot is alive!"
+
+    def run():
+        app.run(host='0.0.0.0', port=8080)
+
+    def keep_alive():
+        t = Thread(target=run)
+        t.start()
+
+    # Запускаем веб-сервер
+    keep_alive()
